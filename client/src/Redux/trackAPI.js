@@ -1,5 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
+   fetchAllTracksSuccess,
+   fetchUserTracksSuccess,
    updateTrackStats,
    addCommentSuccess, 
    fetchCommentsSuccess,
@@ -11,6 +13,44 @@ import {
    dislikeTrackSuccess,
    dislikeTrackFailure,
  } from "./user/tracksSlice";
+
+export const fetchAllTracks = createAsyncThunk(
+  'tracks/fetchAllTracks',
+  async ({ page, limit }, thunkAPI) => {
+    try {
+      const res = await fetch(`/api/tracks/all?page=${page}&limit=${limit}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch tracks');
+      }
+      const data = await res.json();
+      thunkAPI.dispatch(fetchAllTracksSuccess(data));
+      return data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchUserTracks = createAsyncThunk(
+  'tracks/fetchUserTracks',
+  async ({ page, limit }, thunkAPI) => {
+    try {
+      const res = await fetch(`/api/tracks/user?page=${page}&limit=${limit}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch user tracks');
+      }
+      const data = await res.json();
+      thunkAPI.dispatch(fetchUserTracksSuccess(data));
+      return data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+); 
 
 export const incrementPlayCount = createAsyncThunk(
   'tracks/incrementPlayCount',

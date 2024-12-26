@@ -18,6 +18,7 @@ import {
   deleteTrackSuccess,
   deleteTrackFailure,
 } from '../Redux/user/tracksSlice'
+import { fetchAllTracks, fetchUserTracks } from '../Redux/trackAPI.js'
 
 import  TracksList from '../components/TracksList.jsx'
 import { SearchBar } from '../components/Searchbar.jsx'
@@ -53,16 +54,24 @@ export default function Tracks() {
   const [playlist, setPlaylist] = useState([])
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
 
+  const [error, setError] = useState(null)
+
   const dispatch = useDispatch()
   const { currentUser } = useSelector((state) => state.user)
-  const { userTracks, allTracks, loading, error } = useSelector((state) => state.tracks)
+  const { userTracks, allTracks, loading, error: reduxError } = useSelector((state) => state.tracks)
 
   useEffect(() => {
-    fetchAllTracks()
+    fetchAllTracksHandler()
     if (currentUser) {
-      fetchUserTracks()
+      fetchUserTracksHandler()
     }
   }, [currentUser])
+
+  useEffect(() => {
+    if (reduxError) {
+      setError(reduxError)
+    }
+  }, [reduxError])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -98,48 +107,34 @@ export default function Tracks() {
   }, [audioReady, isPlaying])
 
 
-  // Update the fetchAllTracks function
-const fetchAllTracks = async () => {
-  dispatch(fetchTracksStart());
-  try {
-    const res = await fetch(`/api/tracks/all?page=${allTracksPage}&limit=10`);
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      console.error('Received non-array data:', data);
-      throw new Error('Invalid data format received');
+  const fetchAllTracksHandler = async () => {
+    try {
+      dispatch(fetchTracksStart())
+      const data = await dispatch(fetchAllTracks({ page: allTracksPage, limit: 10 })).unwrap()
+      dispatch(fetchAllTracksSuccess(allTracksPage === 1 ? data : [...allTracks, ...data]))
+      setHasMoreAllTracks(data.length >= 10)
+      setAllTracksPage(prevPage => prevPage + 1)
+    } catch (error) {
+      console.error('Error fetching tracks:', error)
+      dispatch(fetchTracksFailure(error.message))
+      setError('Failed to fetch tracks. Please try again.')
     }
-    dispatch(fetchAllTracksSuccess(allTracksPage === 1 ? data : [...allTracks, ...data]));
-    setHasMoreAllTracks(data.length >= 10);
-    setAllTracksPage(prevPage => prevPage + 1);
-  } catch (error) {
-    console.error('Error fetching tracks:', error);
-    dispatch(fetchTracksFailure(error instanceof Error ? error.message : 'An unknown error occurred'));
   }
-};
 
-// Update the fetchUserTracks function
-const fetchUserTracks = async () => {
-  if (!currentUser) return;
-  dispatch(fetchTracksStart());
-  try {
-    const res = await fetch(`/api/tracks/user?page=${userTracksPage}&limit=10`, {
-      headers: {
-        'Authorization': `Bearer ${currentUser.token}`
-      }
-    });
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      console.error('Received non-array data:', data);
-      throw new Error('Invalid data format received');
+  const fetchUserTracksHandler = async () => {
+    if (!currentUser) return
+    try {
+      dispatch(fetchTracksStart())
+      const data = await dispatch(fetchUserTracks({ page: userTracksPage, limit: 10 })).unwrap()
+      dispatch(fetchUserTracksSuccess(userTracksPage === 1 ? data : [...userTracks, ...data]))
+      setHasMoreUserTracks(data.length >= 10)
+      setUserTracksPage(prevPage => prevPage + 1)
+    } catch (error) {
+      console.error('Error fetching user tracks:', error)
+      dispatch(fetchTracksFailure(error.message))
+      setError('Failed to fetch user tracks. Please try again.')
     }
-    dispatch(fetchUserTracksSuccess(userTracksPage === 1 ? data : [...userTracks, ...data]));
-    setHasMoreUserTracks(data.length >= 10);
-    setUserTracksPage(prevPage => prevPage + 1);
-  } catch (error) {
-    console.error('Error fetching user tracks:', error);
-    dispatch(fetchTracksFailure(error instanceof Error ? error.message : 'An unknown error occurred'));
   }
-};
 
   useEffect(() => {
     if (activeTab === 'all') {
@@ -617,6 +612,12 @@ const fetchUserTracks = async () => {
       </div>
     </div>
   </div>
+  {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
 </div>
 )
 }

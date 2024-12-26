@@ -34,23 +34,39 @@ export const uploadTrack = async (req, res, next) => {
   }
 };
 
+export const getAllTracks = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const tracks = await Track.find()
+      .populate('uploadedBy', 'username')
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json(tracks);
+  } catch (error) {
+    next(errorHandler(500, 'Server error while fetching tracks'));
+  }
+};
+
 export const getUserTracks = async (req, res, next) => {
   if (!req.user) return next(errorHandler(401, 'You must be logged in to view your tracks'));
 
   try {
-    const user = await User.findById(req.user.id).populate('tracks');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findById(req.user.id).populate({
+      path: 'tracks',
+      options: { skip: skip, limit: limit }
+    });
+
     res.status(200).json(user.tracks);
   } catch (error) {
-    next(error);
-  }
-};
-
-export const getAllTracks = async (req, res, next) => {
-  try {
-    const tracks = await Track.find().populate('uploadedBy', 'username');
-    res.status(200).json(tracks);
-  } catch (error) {
-    next(error);
+    next(errorHandler(500, 'Server error while fetching user tracks'));
   }
 };
 
