@@ -14,18 +14,24 @@ import {
    dislikeTrackFailure,
  } from "./user/tracksSlice";
 
-export const fetchAllTracks = createAsyncThunk(
+ export const fetchAllTracks = createAsyncThunk(
   'tracks/fetchAllTracks',
   async ({ page, limit }, thunkAPI) => {
     try {
       const res = await fetch(`/api/tracks/all?page=${page}&limit=${limit}`);
       if (!res.ok) {
-        throw new Error('Failed to fetch tracks');
+        const errorData = await res.text();
+        throw new Error(`Failed to fetch tracks: ${errorData}`);
+      }
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format. Expected JSON.");
       }
       const data = await res.json();
       thunkAPI.dispatch(fetchAllTracksSuccess(data));
       return data;
     } catch (error) {
+      console.error('Error in fetchAllTracks:', error);
       return thunkAPI.rejectWithValue(error.message);
     }
   }
@@ -37,20 +43,27 @@ export const fetchUserTracks = createAsyncThunk(
     try {
       const res = await fetch(`/api/tracks/user?page=${page}&limit=${limit}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
         }
       });
       if (!res.ok) {
-        throw new Error('Failed to fetch user tracks');
+        const errorData = await res.text();
+        throw new Error(`Failed to fetch user tracks: ${errorData}`);
+      }
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format. Expected JSON.");
       }
       const data = await res.json();
       thunkAPI.dispatch(fetchUserTracksSuccess(data));
       return data;
     } catch (error) {
+      console.error('Error in fetchUserTracks:', error);
       return thunkAPI.rejectWithValue(error.message);
     }
   }
-); 
+);
 
 export const incrementPlayCount = createAsyncThunk(
   'tracks/incrementPlayCount',
